@@ -24,16 +24,16 @@ type RemoteIPDialer struct {
 	cc *ControlChannel
 }
 
-type RemoteIPDialRequest struct {
+type remoteIPDialRequest struct {
 	Network string
 	Address string
 }
 
-func (r *RemoteIPDialRequest) t() string { return "RemoteIPDialRequest" }
-func (r *RemoteIPDialRequest) MarshalText() ([]byte, error) {
+func (r *remoteIPDialRequest) t() string { return "remoteIPDialRequest" }
+func (r *remoteIPDialRequest) MarshalText() ([]byte, error) {
 	return json.Marshal(r)
 }
-func (r *RemoteIPDialRequest) UnmarshalText(text []byte) error {
+func (r *remoteIPDialRequest) UnmarshalText(text []byte) error {
 	return json.Unmarshal(text, r)
 }
 
@@ -51,7 +51,7 @@ func (r *RemoteIPDialResult) UnmarshalText(text []byte) error {
 }
 
 func (d *RemoteIPDialer) Dial(network, address string) (*RemoteIPConn, error) {
-	ch, err := d.cc.issue(&RemoteIPDialRequest{Network: network, Address: address})
+	ch, err := d.cc.issue(&remoteIPDialRequest{Network: network, Address: address})
 	if err != nil {
 		return nil, err
 	}
