@@ -37,16 +37,16 @@ func (r *remoteIPDialRequest) UnmarshalText(text []byte) error {
 	return json.Unmarshal(text, r)
 }
 
-type RemoteIPDialResult struct {
+type remoteIPDialResult struct {
 	Success bool
 	Error   string `json:",omitempty"`
 	Handle  uint64 `json:",omitempty"`
 }
 
-func (r *RemoteIPDialResult) MarshalText() ([]byte, error) {
+func (r *remoteIPDialResult) MarshalText() ([]byte, error) {
 	return json.Marshal(r)
 }
-func (r *RemoteIPDialResult) UnmarshalText(text []byte) error {
+func (r *remoteIPDialResult) UnmarshalText(text []byte) error {
 	return json.Unmarshal(text, r)
 }
 
@@ -60,7 +60,7 @@ func (d *RemoteIPDialer) Dial(network, address string) (*RemoteIPConn, error) {
 	if !ok {
 		return nil, ErrorRequestCancelled
 	}
-	res := chres.(*RemoteIPDialResult)
+	res := chres.(*remoteIPDialResult)
 	if !res.Success {
 		return nil, errors.New(res.Error)
 	}
