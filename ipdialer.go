@@ -39,11 +39,17 @@ func (d *RemoteIPDialer) Dial(network, address string) (*RemoteIPConn, error) {
 		return nil, err
 	}
 
-	chres, ok := <-ch
+	chrx, ok := <-ch
 	if !ok {
 		return nil, ErrorRequestCancelled
 	}
-	res := chres.(*remoteIPDialResult)
+
+	var res *remoteIPDialResult
+	err = res.UnmarshalText(chrx)
+	if err != nil {
+		return nil, err
+	}
+
 	if !res.Success {
 		return nil, errors.New(res.Error)
 	}

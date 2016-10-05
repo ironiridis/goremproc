@@ -21,10 +21,6 @@ var ErrorRequestCancelled = errors.New("Request was cancelled")
 // all of them, what are you even doing here.
 var ErrorStub = errors.New("This function isn't implemented :(")
 
-type completion interface {
-	encoding.TextUnmarshaler
-}
-
 type req interface {
 	encoding.TextMarshaler
 	t() string
@@ -50,10 +46,11 @@ const (
 )
 
 type issuedRequest uint64
+type encResult []byte
 type ControlChannel struct {
 	m         sync.RWMutex
 	last      issuedRequest
-	pend      map[issuedRequest]chan completion
+	pend      map[issuedRequest]chan encResult
 	state     ControlChannelState
 	r         ControlChannelReader
 	w         ControlChannelWriter
@@ -127,7 +124,7 @@ func (c *ControlChannel) fail(e error) {
 	c.Close()
 }
 
-func (c *ControlChannel) issue(r req) (chan completion, error) {
+func (c *ControlChannel) issue(r req) (chan encResult, error) {
 	if !c.IsOpen() {
 		return nil, ErrorControlChannelNotOpen
 	}
@@ -141,12 +138,12 @@ func (c *ControlChannel) issue(r req) (chan completion, error) {
 		return nil, err
 	}
 
-	compChan := make(chan completion)
+	ch := make(chan encResult)
 
 	c.m.Lock()
 	I := c.last + 1
 	c.last = I
-	c.pend[c.last] = compChan
+	c.pend[c.last] = ch
 	c.m.Unlock()
 
 	p := RequestPayload{T: r.t(), P: buf, I: I}
@@ -155,7 +152,7 @@ func (c *ControlChannel) issue(r req) (chan completion, error) {
 		c.fail(err)
 		return nil, err
 	}
-	return compChan, nil
+	return ch, nil
 }
 
 func NewControlChannel(r ControlChannelReader, w ControlChannelWriter) (c *ControlChannel) {
