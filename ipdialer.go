@@ -1,9 +1,23 @@
 package goremproc
 
-type RemoteIPConn interface {
-	Read(b []byte) (int, error)
-	Write(b []byte) (int, error)
-	Close() error
+import (
+	"encoding/json"
+	"errors"
+)
+
+type RemoteIPConn struct {
+	handle uint64
+	cc     *ControlChannel
+}
+
+func (c *RemoteIPConn) Read(b []byte) (int, error) {
+	return 0, ErrorStub
+}
+func (c *RemoteIPConn) Write(b []byte) (int, error) {
+	return 0, ErrorStub
+}
+func (c *RemoteIPConn) Close() error {
+	return ErrorStub
 }
 
 type RemoteIPDialer struct {
@@ -11,16 +25,46 @@ type RemoteIPDialer struct {
 }
 
 type RemoteIPDialRequest struct {
-	network string
-	address string
+	Network string
+	Address string
+}
+
+func (r *RemoteIPDialRequest) t() string { return "RemoteIPDialRequest" }
+func (r *RemoteIPDialRequest) MarshalText() ([]byte, error) {
+	return json.Marshal(r)
+}
+func (r *RemoteIPDialRequest) UnmarshalText(text []byte) error {
+	return json.Unmarshal(text, r)
 }
 
 type RemoteIPDialResult struct {
+	Success bool
+	Error   string `json:",omitempty"`
+	Handle  uint64 `json:",omitempty"`
+}
+
+func (r *RemoteIPDialResult) MarshalText() ([]byte, error) {
+	return json.Marshal(r)
+}
+func (r *RemoteIPDialResult) UnmarshalText(text []byte) error {
+	return json.Unmarshal(text, r)
 }
 
 func (d *RemoteIPDialer) Dial(network, address string) (*RemoteIPConn, error) {
-	//d.cc.issue(r)
-	return nil, nil
+	ch, err := d.cc.issue(&RemoteIPDialRequest{Network: network, Address: address})
+	if err != nil {
+		return nil, err
+	}
+
+	chres, ok := <-ch
+	if !ok {
+		return nil, ErrorRequestCancelled
+	}
+	res := chres.(*RemoteIPDialResult)
+	if !res.Success {
+		return nil, errors.New(res.Error)
+	}
+	return &RemoteIPConn{handle: res.Handle}, nil
 }
 
 func (c *ControlChannel) NewRemoteIPDialer() (d *RemoteIPDialer, err error) {

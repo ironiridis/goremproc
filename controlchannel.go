@@ -13,13 +13,21 @@ var ErrorControlChannelNotOpen = errors.New("Control channel is not open")
 // is encountered.
 var ErrorControlChannelInternalError = errors.New("Internal Error")
 
+// ErrorRequestCancelled is returned by an API call when the result chan is
+// closed without returning a result.
+var ErrorRequestCancelled = errors.New("Request was cancelled")
+
+// ErrorStub is returned by functions that aren't complete, which is basically
+// all of them, what are you even doing here.
+var ErrorStub = errors.New("This function isn't implemented :(")
+
 type completion interface {
 	encoding.TextUnmarshaler
 }
 
 type req interface {
 	encoding.TextMarshaler
-	Type() string
+	t() string
 }
 
 // A ControlChannelReader is a function that will fill its parameter with
@@ -119,23 +127,21 @@ func (c *ControlChannel) fail(e error) {
 	c.Close()
 }
 
-func (c *ControlChannel) issue(r *req) (compChan chan completion, err error) {
+func (c *ControlChannel) issue(r req) (chan completion, error) {
 	if !c.IsOpen() {
-		err = ErrorControlChannelNotOpen
-		return
+		return nil, ErrorControlChannelNotOpen
 	}
 
 	if c.w == nil || c.r == nil {
-		err = ErrorControlChannelInternalError
-		return
+		return nil, ErrorControlChannelInternalError
 	}
 
-	buf, err := (*r).MarshalText()
+	buf, err := r.MarshalText()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	compChan = make(chan completion)
+	compChan := make(chan completion)
 
 	c.m.Lock()
 	I := c.last + 1
@@ -143,13 +149,13 @@ func (c *ControlChannel) issue(r *req) (compChan chan completion, err error) {
 	c.pend[c.last] = compChan
 	c.m.Unlock()
 
-	p := RequestPayload{T: (*r).Type(), P: buf, I: I}
+	p := RequestPayload{T: r.t(), P: buf, I: I}
 	err = c.w(p)
 	if err != nil {
 		c.fail(err)
-		compChan = nil
+		return nil, err
 	}
-	return
+	return compChan, nil
 }
 
 func NewControlChannel(r ControlChannelReader, w ControlChannelWriter) (c *ControlChannel) {
